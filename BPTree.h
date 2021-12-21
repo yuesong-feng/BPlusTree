@@ -24,6 +24,8 @@ private:
     void makeIndex(Node<KeyT, ValT>* _new_node, KeyT _index);
     inline int keyIndex(Node<KeyT, ValT> *_node, KeyT _key);
     inline std::pair<Node<KeyT, ValT>*, int> keyIndexInLeaf(KeyT _key);
+    Node<KeyT, ValT>* splitLeaf(Node<KeyT, ValT>* _leaf);
+    std::pair<Node<KeyT, ValT>*, KeyT> splitNode(Node<KeyT, ValT>* _node);
 public:
     BPTree();
     void insert(KeyT _key, ValT _val);
@@ -36,6 +38,35 @@ Node<KeyT, ValT>::Node(bool _leaf) : leaf(_leaf), parent(nullptr) {}
 template<typename KeyT, typename ValT>
 BPTree<KeyT, ValT>::BPTree() : root(nullptr) {}
 
+template<typename KeyT, typename ValT>
+Node<KeyT, ValT>* BPTree<KeyT, ValT>::splitLeaf(Node<KeyT, ValT>* _leaf){
+    Node<KeyT, ValT> *new_leaf = new Node<KeyT, ValT>(LEAF);
+    new_leaf->ptr2node.push_back(_leaf->ptr2node[0]);
+    _leaf->ptr2node.clear();
+    _leaf->ptr2node.push_back(new_leaf);
+    new_leaf->parent = _leaf->parent;
+    int mid = (_leaf->key.size() + 1) / 2 - 1;
+    new_leaf->key.assign(_leaf->key.begin() + mid, _leaf->key.end());
+    new_leaf->ptr2val.assign(_leaf->ptr2val.begin() + mid, _leaf->ptr2val.end());
+    _leaf->key.erase(_leaf->key.begin() + mid, _leaf->key.end());
+    _leaf->ptr2val.erase(_leaf->ptr2val.begin() + mid, _leaf->ptr2val.end());
+    return new_leaf;
+}
+
+template<typename KeyT, typename ValT>
+std::pair<Node<KeyT, ValT>*, KeyT> BPTree<KeyT, ValT>::splitNode(Node<KeyT, ValT>* _node){
+    Node<KeyT, ValT> *new_node = new Node<KeyT, ValT>();
+    new_node->parent = _node->parent;
+    int mid = (_node->key.size() + 1) / 2 - 1;
+    KeyT push_key = _node->key[mid];
+    new_node->key.assign(_node->key.begin() + mid + 1, _node->key.end());
+    new_node->ptr2node.assign(_node->ptr2node.begin() + mid + 1, _node->ptr2node.end());
+    _node->key.erase(_node->key.begin() + mid, _node->key.end());
+    _node->ptr2node.erase(_node->ptr2node.begin() + mid, _node->ptr2node.end());
+    for(Node<KeyT, ValT>* each : new_node->ptr2node)
+        each->parent = new_node;
+    return std::make_pair(new_node, push_key);
+}
 
 template<typename KeyT, typename ValT>
 void BPTree<KeyT, ValT>::insert(KeyT _key, ValT _val){  
@@ -57,16 +88,7 @@ void BPTree<KeyT, ValT>::insert(KeyT _key, ValT _val){
     leaf->key.insert(leaf->key.begin() + loc + 1, _key);
     leaf->ptr2val.insert(leaf->ptr2val.begin() + loc + 1, new ValT(_val));
     if(leaf->key.size() > order){
-        Node<KeyT, ValT> *new_leaf = new Node<KeyT, ValT>(LEAF);
-        new_leaf->ptr2node.push_back(leaf->ptr2node[0]);
-        leaf->ptr2node.clear();
-        leaf->ptr2node.push_back(new_leaf);
-        new_leaf->parent = leaf->parent;
-        int mid = (leaf->key.size() + 1) / 2 - 1;
-        new_leaf->key.assign(leaf->key.begin() + mid, leaf->key.end());
-        new_leaf->ptr2val.assign(leaf->ptr2val.begin() + mid, leaf->ptr2val.end());
-        leaf->key.erase(leaf->key.begin() + mid, leaf->key.end());
-        leaf->ptr2val.erase(leaf->ptr2val.begin() + mid, leaf->ptr2val.end());
+        Node<KeyT, ValT> *new_leaf = splitLeaf(leaf);
         if(leaf == root){
             Node<KeyT, ValT> *new_root = new Node<KeyT, ValT>();
             new_root->key.push_back(new_leaf->key[0]);
@@ -88,16 +110,9 @@ void BPTree<KeyT, ValT>::makeIndex(Node<KeyT, ValT>* _new_node, KeyT _index){
     node->key.insert(node->key.begin() + loc + 1, _index);
     node->ptr2node.insert(node->ptr2node.begin() + loc + 2, _new_node);
     if(node->key.size() > order){
-        Node<KeyT, ValT> *new_node = new Node<KeyT, ValT>();
-        new_node->parent = node->parent;
-        int mid = (node->key.size() + 1) / 2 - 1;
-        KeyT push_key = node->key[mid];
-        new_node->key.assign(node->key.begin() + mid + 1, node->key.end());
-        new_node->ptr2node.assign(node->ptr2node.begin() + mid + 1, node->ptr2node.end());
-        node->key.erase(node->key.begin() + mid, node->key.end());
-        node->ptr2node.erase(node->ptr2node.begin() + mid, node->ptr2node.end());
-        for(Node<KeyT, ValT>* each : new_node->ptr2node)
-            each->parent = new_node;
+        std::pair<Node<KeyT, ValT>*, KeyT> pair = splitNode(node);
+        Node<KeyT, ValT> *new_node = pair.first;
+        KeyT push_key = pair.second;
         if(node == root){
             Node<KeyT, ValT> *new_root = new Node<KeyT, ValT>();
             new_root->key.push_back(push_key);
@@ -170,3 +185,6 @@ void BPTree<KeyT, ValT>::display(){
         std::cout << std::endl;
     }
 }
+
+
+
