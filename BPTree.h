@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <queue>
-#include <assert.h>
+#include <sys/socket.h>
 
 template<typename KeyT, typename ValT>
 class Node{
@@ -31,9 +31,19 @@ private:
 public:
     BPTree();
     void insert(KeyT _key, ValT _val);
+    void erase(KeyT _key);
+
+    ValT* find(KeyT _key);
     void display();
+    void scan();
 };
 
+/*
+*    @brief Find the location of given _key in given _node. 
+*    @param _node: Given node
+*    @param _key: Key we want to locate in _node
+*    @return Index of _key in _node. If _key is not in _node, return the nearest and smaller index
+*/
 template<typename KeyT, typename ValT>
 inline int BPTree<KeyT, ValT>::keyIndex(Node<KeyT, ValT> *_node, KeyT _key){
     int loc = -1;
@@ -45,6 +55,11 @@ inline int BPTree<KeyT, ValT>::keyIndex(Node<KeyT, ValT> *_node, KeyT _key){
     return loc;
 }
 
+/*
+*    @brief Find the location of given _key in leaf node. 
+*    @param _key: Key we want to locate.
+*    @return A pair of leaf and index of given _key. If _key not in B+ tree, the index is the nearest and smaller key than given _key.
+*/
 template<typename KeyT, typename ValT>
 inline std::pair<Node<KeyT, ValT>*, int> BPTree<KeyT, ValT>::keyIndexInLeaf(KeyT _key){
     if(root == nullptr){
@@ -61,6 +76,11 @@ inline std::pair<Node<KeyT, ValT>*, int> BPTree<KeyT, ValT>::keyIndexInLeaf(KeyT
     }
 }
 
+/*
+*    @brief Split leaf node when oversize.
+*    @param _leaf: Leaf we want to split.
+*    @return The new leaf we created after split.
+*/
 template<typename KeyT, typename ValT>
 Node<KeyT, ValT>* BPTree<KeyT, ValT>::splitLeaf(Node<KeyT, ValT>* _leaf){
     Node<KeyT, ValT> *new_leaf = new Node<KeyT, ValT>(LEAF);
@@ -75,6 +95,11 @@ Node<KeyT, ValT>* BPTree<KeyT, ValT>::splitLeaf(Node<KeyT, ValT>* _leaf){
     return new_leaf;
 }
 
+/*
+*    @brief Split non-leaf node when oversize.
+*    @param _node: Node we want to split.
+*    @return The new node we created after split.
+*/
 template<typename KeyT, typename ValT>
 std::pair<Node<KeyT, ValT>*, KeyT> BPTree<KeyT, ValT>::splitNode(Node<KeyT, ValT>* _node){
     Node<KeyT, ValT> *new_node = new Node<KeyT, ValT>();
@@ -90,6 +115,12 @@ std::pair<Node<KeyT, ValT>*, KeyT> BPTree<KeyT, ValT>::splitNode(Node<KeyT, ValT
     return std::make_pair(new_node, push_key);
 }
 
+/*
+*    @brief Create index for given _new_node using _index as index. The index will be inserted to _new_node's parent.
+*    @param _new_node: Node we want to create index for.
+*    @param _index: Index of our new node. For leaf node, it should be the first key.
+*    @return void
+*/
 template<typename KeyT, typename ValT>
 void BPTree<KeyT, ValT>::createIndex(Node<KeyT, ValT>* _new_node, KeyT _index){
     Node<KeyT, ValT> *node = _new_node->parent;
@@ -120,6 +151,12 @@ Node<KeyT, ValT>::Node(bool _leaf) : leaf(_leaf), parent(nullptr), next(nullptr)
 template<typename KeyT, typename ValT>
 BPTree<KeyT, ValT>::BPTree() : root(nullptr) {}
 
+/*
+*    @brief Insert (key, value) to B+ tree
+*    @param _key: Key we want to insert
+*    @param _val: Value we want to insert
+*    @return void
+*/
 template<typename KeyT, typename ValT>
 void BPTree<KeyT, ValT>::insert(KeyT _key, ValT _val){
     if(root == nullptr){
@@ -155,6 +192,43 @@ void BPTree<KeyT, ValT>::insert(KeyT _key, ValT _val){
     }
 }
 
+/*
+*    @brief Delete _key from B+ tree
+*    @param _key: Key we want to delete
+*    @return void
+*/
+template<typename KeyT, typename ValT>
+void BPTree<KeyT, ValT>::erase(KeyT _key){
+    std::pair<Node<KeyT, ValT>*, int> pair = keyIndexInLeaf(_key);
+    Node<KeyT, ValT> *leaf = pair.first;
+    int loc = pair.second;
+    if(loc == -1 || leaf->key[loc] != _key){
+        std::cout << "Key " << _key << " is not in B+ tree" << std::endl;
+        return;
+    }
+    
+}
+
+/*
+*    @brief Find the value ptr of given key in B+ tree
+*    @param _key: Key we want to find
+*    @return A ptr to value. If key is not in B+ tree then return nullptr
+*/
+template<typename KeyT, typename ValT>
+ValT *BPTree<KeyT, ValT>::find(KeyT _key){
+    std::pair<Node<KeyT, ValT>*, int> pair = keyIndexInLeaf(_key);
+    Node<KeyT, ValT> *leaf = pair.first;
+    int loc = pair.second;
+    if(loc == -1 || leaf->key[loc] != _key){
+        std::cout << "Key " << _key << " is not in B+ tree" << std::endl;
+        return nullptr;
+    } else{
+        return leaf->ptr2val[loc];
+    }
+
+}
+
+
 
 template<typename KeyT, typename ValT>
 void BPTree<KeyT, ValT>::display(){
@@ -183,4 +257,22 @@ void BPTree<KeyT, ValT>::display(){
         }
         std::cout << std::endl;
     }
+}
+
+template<typename KeyT, typename ValT>
+void BPTree<KeyT, ValT>::scan(){
+    if(root == nullptr){
+        std::cout << "B+ tree is empty!" << std::endl;
+        return;
+    }
+    Node<KeyT, ValT> *node = root;
+    while(!node->leaf){
+        node = node->ptr2node[0];
+    }
+    while(node != nullptr){
+        for(auto each : node->ptr2val)
+            std::cout << *each << " ";
+        node = node->next;
+    }
+    std::cout << std::endl;
 }
