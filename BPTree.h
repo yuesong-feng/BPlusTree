@@ -48,9 +48,8 @@ template<typename KeyT, typename ValT>
 inline int BPTree<KeyT, ValT>::keyIndex(Node<KeyT, ValT> *_node, KeyT _key){
     int loc = -1;
     int size = _node->key.size();
-    while(_node->key[loc + 1] <= _key){
+    while (loc + 1 < size && _node->key[loc + 1] <= _key) {
         loc++;
-        if(loc == size - 1) break;
     }
     return loc;
 }
